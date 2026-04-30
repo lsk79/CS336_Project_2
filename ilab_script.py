@@ -5,7 +5,6 @@ from getpass import getpass
 
 def run_query(query):
 
-    print("function started")
     user = input("Enter your Rutgers NetID: ")
     password = getpass("Enter your Rutgers password: ")
 
@@ -37,7 +36,6 @@ def run_query(query):
         conn.close()
 
     except Exception as e:
-        print("ERROR OCCURRED")
         print("Error:", e)
 
 if __name__ == "__main__":
