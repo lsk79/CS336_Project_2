@@ -82,3 +82,47 @@ Make sure Python sees it (usually automatic on iLab, but if not):
 export PYTHONPATH=$HOME/.local/lib/python3.X/site-packages:$PYTHONPATH
 
 If you tell me what error you’re getting (like “externally managed environment” or permission denied), I can pinpoint exactly which fix applies to your iLab setup."
+
+
+--------------------------------------------------------------------------------------------------
+Shreya Bhatlapenumarti ---> 
+
+Input:
+"How can I build a Python program that takes a natural language question and converts it into a SQL SELECT query using a given database schema?"
+
+Output:
+A simple structure is to read the schema from a separate file, take the user’s natural language question as input, and build a prompt that includes both the schema and the question. The prompt should clearly tell the model to return only one PostgreSQL SELECT query and not include explanations or markdown.
+
+For testing, the program can include a function that maps common user questions to SQL queries. Later, that function can be replaced with a real local LLM call. The basic flow is:
+
+1. Read schema_prompt.sql
+2. Ask the user for a question
+3. Generate or return a SQL SELECT query
+4. Print the SQL output
+5. Repeat until the user types "exit"
+----
+Input: "How should I structure a Python function that takes a user question and returns a SQL query using simple logic before integrating a real LLM?"
+
+Output: "You can create a helper function (e.g., run_llm) that takes the user question as input and uses conditional logic (if/elif statements) to return predefined SQL queries for common cases. This allows you to test the overall pipeline before connecting a real LLM.
+
+For example, check if the question contains keywords like "average income" or "loan value greater than", and return the corresponding SQL query. If no condition matches, return a default query like SELECT * FROM application LIMIT 5.
+
+This approach helps verify that your program correctly takes input, processes it, and outputs valid SQL before adding model-based generation." 
+----
+Input: "How can I write a simple Python function that takes a user question and returns a SQL query using conditional logic for testing?"
+Output: "You can define a function that takes a string input and uses if/elif statements to match keywords in the question. Based on the match, return a corresponding SQL query.
+
+Example:
+
+def run_llm(question):
+    q = question.lower()
+
+    if "average income" in q:
+        return "SELECT AVG(applicant_income_000s) FROM application;"
+    elif "loan value greater than" in q:
+        return "SELECT COUNT(*) FROM application WHERE loan_amount_000s > applicant_income_000s;"
+    else:
+        return "SELECT * FROM application LIMIT 5;"
+
+This allows you to simulate LLM behavior while testing your pipeline."
+---
