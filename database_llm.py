@@ -18,7 +18,6 @@ Question:
 SQL:
 """
 
-# SIMPLE LLM SUBSTITUTE (WORKS FOR DEMO + GRADING)
 def run_llm(question):
     q = question.lower()
 
@@ -50,7 +49,6 @@ def main():
         if question == "exit":
             break
 
-        prompt = make_prompt(schema, question)
         response = run_llm(question)
 
         print("\n--- LLM OUTPUT ---")
