@@ -16,8 +16,6 @@ ORDER BY COUNT(*) DESC
 LIMIT 1;"""
     else:
         return "SELECT * FROM application LIMIT 5;"
-
-
 while True:
     question = input("Enter question (or type exit): ")
 
