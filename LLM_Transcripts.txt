@@ -126,3 +126,16 @@ def run_llm(question):
 
 This allows you to simulate LLM behavior while testing your pipeline."
 ---
+
+--------------------------------------------------------------------------------------
+Angela Ding -->
+
+Input: "When creating file that contain the subset of a large SQL script that has all the CREATE TABLES how do I know which INSERT statement to choose in order to insure that all the right data are there"
+
+Output: "To know exactly which INSERT statements to choose, you have to satisfy the database's Referential Integrity—specifically, its Foreign Key Constraints. If Table B relies on Table A, you cannot insert a row into Table B unless the exact matching row in Table A is also included in your file.To ensure all the "right" data is there, you have to follow the Dependency Tree of your database. There are two main ways to figure out which rows to pick:
+
+Method 1: The "Bottom-Up" Approach (Best for testing): Instead of starting with the setup tables, you start with the most important "transaction" or "event" table in your database and work backward to find its parents.Pick your core data: Let's say your main table is Orders. You select 10 random INSERT statements for the Orders table. Identify the parents: Look at those 10 Orders rows. What customer_ids do they use? What product_ids do they use?
+Fetch the required parents: Go to your Customers table and pick only the INSERT statements for the specific customer_ids you found in step 2. Go to the Products table and do the same. Repeat: If the Products table has a category_id, look at the categories used by your selected products, and go fetch those specific rows from the Categories table. This guarantees that every single foreign key is satisfied and you have a perfect, unbroken slice of reality.
+
+Method 2: The "Top-Down" Approach: If you want to build the data from the ground up, you go in the exact opposite direction. Insert all independent Lookup Tables first: Find tables that have NO foreign keys (e.g., States, Statuses, Categories). You usually keep 100% of the inserts for these because they are small and don't depend on anything. Pick random Parents: Go to your Users or Customers table. Pick 10 random inserts. Note their IDs. Filter the Children: Go to the Orders table. Look for inserts where the customer_id matches one of the 10 you picked in step 2. Delete all other inserts.
+----
