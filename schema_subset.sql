@@ -1,4 +1,4 @@
-# Angela
+## Angela
 
 CREATE TABLE Normalized_App(
   id INT PRIMARY KEY,
