@@ -25,3 +25,7 @@ while True:
     print("\n--- LLM OUTPUT ---")
     print(run_llm(question))
     print()
+
+##Angela -->
+
+def extract_query( 
