@@ -352,3 +352,153 @@ command = f"python3 {remote_script_path} {shlex.quote(sql_query)}"
 
 That is what protects the SQL query from breaking the SSH command."
 
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  Input: "I currently have a local Python program with a loop that asks the user for a question, generates or receives an LLM response, extracts a cleaned SQL SELECT query, and then uses subprocess.run to call a local script. How should I modify the program so that instead of subprocess.run locally, it uses Paramiko to execute ilab_script.py on a remote iLab server?"
+
+  Output: "Replace the local subprocess call with a Paramiko helper function that SSHes into iLab and runs the script remotely.
+
+The original local call looks like:
+
+subprocess.run(["python3", "ilab_script.py", processed_sql])
+
+That should be replaced with a function that opens an SSH connection, safely quotes the SQL query, runs the remote script, captures stdout/stderr, and returns the output to the local program.
+
+The main imports needed are:
+
+import paramiko
+import getpass
+import shlex
+
+A helper function can be structured like this:
+
+def run_query_on_ilab(sql_query: str, hostname: str, username: str, password: str):
+    remote_script_path = "~/ilab_script.py"
+    command = f"python3 {remote_script_path} {shlex.quote(sql_query)}"
+
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        client.connect(
+            hostname=hostname,
+            username=username,
+            password=password,
+            look_for_keys=False,
+            allow_agent=False
+        )
+
+        stdin, stdout, stderr = client.exec_command(command)
+
+        output = stdout.read().decode("utf-8", errors="replace")
+        error_output = stderr.read().decode("utf-8", errors="replace")
+        exit_code = stdout.channel.recv_exit_status()
+
+        return exit_code, output, error_output
+
+    finally:
+        client.close()
+
+Inside the main loop, instead of subprocess.run, the program should call:
+
+exit_code, output, error_output = run_query_on_ilab(
+    sql_query=processed_sql,
+    hostname=hostname,
+    username=ssh_username,
+    password=ssh_password
+)
+
+Then it should print the remote output:
+
+print("\n-- Query Result --")
+print(output)
+
+if error_output.strip():
+    print("\n-- Remote Error --")
+    print(error_output)
+
+The main idea is that the local controller still handles the question, LLM response, SQL extraction, and validation. The only major change is that the final execution step now happens through SSH on the remote iLab server instead of running ilab_script.py locally."
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  Input: "How should I structure a Python interactive command-line program so that it asks for SSH credentials once, then repeatedly asks for natural language questions, sends each generated SQL query to the remote server, prints the output table, and exits only when the user types exactly \"exit\"?"
+
+  Output: "The program should have one setup section before the loop, then a repeated question-processing loop.
+
+The basic structure is:
+
+Ask for SSH credentials once
+Connect to iLab once
+Loop:
+    ask user question
+    if question == "exit": stop
+    generate SQL from the natural language question
+    extract the clean SQL query
+    validate that it is a safe SELECT query
+    send the query to iLab through Paramiko
+    print the remote table output
+Close the SSH connection when done
+
+The SSH connection should be created before the loop:
+
+client = paramiko.SSHClient()
+client.load_system_host_keys()
+client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+client.connect(
+    hostname=hostname,
+    username=ssh_username,
+    password=ssh_password,
+    look_for_keys=False,
+    allow_agent=False
+)
+
+Then inside the loop, each question gets processed:
+
+while True:
+    user_question = input("\nEnter question: ")
+
+    if user_question == "exit":
+        print("Exiting...")
+        break
+
+    raw_llm_output = run_llm(user_question)
+    processed_sql = extract_query(raw_llm_output)
+
+    if processed_sql.startswith("ERROR"):
+        print(processed_sql)
+        continue
+
+    if not is_safe_select_query(processed_sql):
+        print("Rejected query. Only safe SELECT queries are allowed.")
+        continue
+
+    exit_code, output, error_output = run_query_on_ilab(
+        client=client,
+        sql_query=processed_sql,
+        remote_script_path=remote_script_path
+    )
+
+    print("\n-- Query Result --")
+    print(output)
+
+    if error_output.strip():
+        print("\n-- Remote Error --")
+        print(error_output)
+
+The key detail is that the exit condition should be exactly:
+
+if user_question == "exit":
+    break
+
+This means the program only exits when the user types exactly exit. Inputs like Exit, EXIT, exit with spaces, or other variations would not quit unless the condition is changed to use strip() or lower().
+
+The SSH client should be closed in a finally block:
+
+finally:
+    client.close()
+    print("SSH connection closed.")
+
+This design keeps the login step from repeating every time, while still allowing the user to ask multiple database questions in one session."
+
