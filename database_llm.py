@@ -1,3 +1,4 @@
+import re
 ##Shreya--> 
 
 def run_llm(question):
@@ -28,4 +29,5 @@ while True:
 
 ##Angela -->
 
-def extract_query( 
+def extract_query(llm_response: str) -> str:
+    markdown_match = re.search
