@@ -1,4 +1,6 @@
 import re
+import subprocess
+
 ##Shreya--> 
 
 def run_llm(question):
@@ -30,4 +32,36 @@ while True:
 ##Angela -->
 
 def extract_query(llm_response: str) -> str:
-    markdown_match = re.search
+    match = re.search(r"'''sql\s*(.*?)\s*'''", llm_response, re.DOTALL | re.IGNORECASE)
+    if not match:
+        match = re.search(r"'''\s*(.*?)\s*'''", llm_response, re.DOTALL)
+    if match: 
+        query = match.group(1).strip()
+    else:
+        raw_match = re.search(r"(SELECT\s+.*?;)", llm_response, re.DOTALL | re.IGNORECASE)
+        query = match.group(1).strip() if match else "ERROR: There are no SELECT query found."
+    if "ERROR" not in query:
+        query = query.replace('\n', ' ').replace('\r', ' ')
+        query = " ".join(query.split())
+    return query
+
+if __name__ == "--main--":
+    while True:
+        user_question = input("\nEnter question (or type exit): ")
+        if user_question.lower() == "exit":
+            print("Exiting...")
+            break
+        raw_output = run_llm(user_question)
+        print("\n-- RAW LLM OUTPUT --")
+        print(raw_output)
+        processed_sql = extract_query(raw_output)
+        if "ERROR" in processed_sql:
+            print(f"\n{processed_sql}")
+        else:
+            print("\n--CLEAN SQL FOR ILAB --")
+            print(processed_sql)
+            print("\nExecuting on iLab server...")
+            subprocess.run(["python3", "ilab_script.py", processed_sql])
+
+    
+    
