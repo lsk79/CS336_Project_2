@@ -137,5 +137,41 @@ Output: "To know exactly which INSERT statements to choose, you have to satisfy 
 Method 1: The "Bottom-Up" Approach (Best for testing): Instead of starting with the setup tables, you start with the most important "transaction" or "event" table in your database and work backward to find its parents.Pick your core data: Let's say your main table is Orders. You select 10 random INSERT statements for the Orders table. Identify the parents: Look at those 10 Orders rows. What customer_ids do they use? What product_ids do they use?
 Fetch the required parents: Go to your Customers table and pick only the INSERT statements for the specific customer_ids you found in step 2. Go to the Products table and do the same. Repeat: If the Products table has a category_id, look at the categories used by your selected products, and go fetch those specific rows from the Categories table. This guarantees that every single foreign key is satisfied and you have a perfect, unbroken slice of reality.
 
-Method 2: The "Top-Down" Approach: If you want to build the data from the ground up, you go in the exact opposite direction. Insert all independent Lookup Tables first: Find tables that have NO foreign keys (e.g., States, Statuses, Categories). You usually keep 100% of the inserts for these because they are small and don't depend on anything. Pick random Parents: Go to your Users or Customers table. Pick 10 random inserts. Note their IDs. Filter the Children: Go to the Orders table. Look for inserts where the customer_id matches one of the 10 you picked in step 2. Delete all other inserts.
+Method 2: The "Top-Down" Approach: If you want to build the data from the ground up, you go in the exact opposite direction. Insert all independent Lookup Tables first: Find tables that have NO foreign keys (e.g., States, Statuses, Categories). You usually keep 100% of the inserts for these because they are small and don't depend on anything. Pick random Parents: Go to your Users or Customers table. Pick 10 random inserts. Note their IDs. Filter the Children: Go to the Orders table. Look for inserts where the customer_id matches one of the 10 you picked in step 2. Delete all other inserts."
 ----
+
+Input: "“What steps should I follow to extract a SQL query from a text response?”
+Ouput: "When you extract a SQL query from an LLM response, you are essentially building a "funnel." You start with a big, messy block of text and pass it through a series of filters until only the pure, safe SQL remains at the bottom.
+
+Step 1: Target the Markdown (The "Happy Path")
+Most modern LLMs format their code inside Markdown blocks. Your first step should always be to use Regular Expressions (Regex) to search for these blocks.
+Action: Search for text sandwiched between ```sql and ``` (or just ``` and ```).
+Why: This instantly drops 90% of the conversational text like "Here is your query:" or "Hope this helps!"
+Code Concept: `re.search(r'
+
+### Step 2: Establish a Fallback (The "Lazy LLM" Path)
+Sometimes, if you prompt an LLM very strictly (e.g., "Output ONLY valid SQL"), it will actually listen to you and skip the Markdown blocks entirely. If your Step 1 regex fails, you need a backup plan.
+* **Action:** If no markdown block is found, treat the *entire* raw text response as your starting string.
+* **Why:** If you don't have a fallback, your code will crash every time the LLM formats its answer as plain text.
+
+### Step 3: Strip Stray Artifacts
+Whether you got your string from Step 1 or Step 2, it probably still has invisible junk attached to it.
+* **Action:** Remove leading and trailing whitespaces, newlines, stray backticks (`), and stray quotation marks.
+* **Why:** A query that looks like `  SELECT * FROM users;  ` or `` `SELECT * FROM users;` `` will often cause syntax errors depending on the database driver you are using.
+* **Code Concept:** `raw_sql.strip().strip('`').strip('"')`
+
+### Step 4: Handle Comments and Semicolons
+LLMs love to add explanations *inside* the SQL query using comments. Sometimes they also add multiple statements separated by semicolons.
+* **Action:** (Optional but recommended) Remove inline comments (lines starting with `--`). If your database driver only accepts one statement at a time, split the string by `;` and keep only the first valid part.
+* **Why:** Drivers like Python's `sqlite3` or `psycopg2` sometimes throw errors if you pass them multiple statements at once or if trailing comments mess up the execution formatting.
+
+### Step 5: Validate the Command (The Security Check)
+Before you ever send the extracted string to your database, you must verify that it actually looks like SQL and is safe to run.
+* **Action:** Check the very first word of your cleaned string. Ensure it is in an approved list (e.g., `SELECT`, `WITH`). If you are only doing data retrieval, explicitly reject the string if it starts with `DROP`, `DELETE`, `UPDATE`, or `INSERT`.
+* **Why:** This prevents your app from accidentally trying to execute the sentence "Sorry, I don't know the answer" as a database command, and it protects your database from accidental deletion if the LLM hallucinates a `DROP TABLE` command.
+* **Code Concept:** `if not clean_sql.upper().startswith(('SELECT', 'WITH')): raise Error()`
+
+### Summary Pipeline
+`Raw Text` ➔ `Regex Extraction` ➔ `Fallback Check` ➔ `Whitespace Strip` ➔ `Comment Cleanup` ➔ `Keyword Validation` ➔ **`Clean SQL`**
+______
+
