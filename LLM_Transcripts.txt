@@ -175,3 +175,180 @@ Before you ever send the extracted string to your database, you must verify that
 `Raw Text` ➔ `Regex Extraction` ➔ `Fallback Check` ➔ `Whitespace Strip` ➔ `Comment Cleanup` ➔ `Keyword Validation` ➔ **`Clean SQL`**
 ______
 
+Lucas B -->
+
+--------------------------------------------------------------------------------------------------
+
+Input: "Can you explain the full pipeline for a Python program where the user enters a natural language question, a local LLM converts it to a SQL SELECT query, the program extracts the SQL query, then sends that query over SSH to an iLab server where another Python script runs it on PostgreSQL and returns the table output?"
+
+Output: "The full pipeline is:
+
+User question
+-> Local LLM
+-> SQL extraction/cleanup
+-> Safety check
+-> SSH command to iLab
+-> iLab Python script
+-> PostgreSQL database
+-> Results printed back to user
+
+Step 1: User enters a natural-language question.
+The local controller program asks the user for a question, such as:
+What is the average applicant income?
+
+Step 2: The local LLM generates a SQL query.
+The program sends the question to the LLM function. The LLM should return a PostgreSQL SELECT query, such as:
+SELECT AVG(applicant_income_000s) FROM application;
+
+Step 3: The program extracts the SQL query.
+Because the LLM might include extra explanation or markdown formatting, the extraction function pulls out only the SQL query and removes unnecessary formatting.
+
+Step 4: The program validates the query.
+Before sending anything to the server, the program checks that the query is safe. For this project, it should only allow SELECT queries and reject commands like DROP, DELETE, UPDATE, INSERT, ALTER, or CREATE.
+
+Step 5: The local program sends the query to iLab through SSH.
+The local computer does not directly connect to PostgreSQL. Instead, it SSHs into the iLab server and runs a command like:
+python3 ilab_script.py "SELECT * FROM application LIMIT 5;"
+
+Step 6: The iLab script receives the SQL query.
+The remote script reads the query from the command-line argument using sys.argv[1].
+
+Step 7: The iLab script connects to PostgreSQL.
+The script asks for the user's Rutgers NetID and password using input and getpass, then connects to postgres.cs.rutgers.edu using psycopg2.
+
+Step 8: The iLab script executes the query.
+The script runs cur.execute(query), fetches the rows, gets the column names, and converts the output into a pandas DataFrame.
+
+Step 9: The iLab script prints the result.
+The table output is printed on the remote server.
+
+Step 10: The output travels back through SSH.
+Because the local program started the remote command, anything printed by the remote script appears back in the local program's terminal.
+
+The main idea is that the local program is the controller. It gets the question, calls the LLM, cleans the SQL, validates it, sends it to iLab, and shows the returned result."
+
+--------------------------------------------------------------------------------------------------
+
+Input: "How can I use Python Paramiko to SSH into a remote Linux server, securely ask the user for their username and password with getpass, run a remote Python script with a SQL query as a command-line argument, and capture the output back into my local Python program?"
+
+Output: "Use Paramiko for the SSH part of the local controller program. The basic structure is:
+
+local Python program
+-> ask for SSH username/password securely
+-> build a safe remote command
+-> SSH into iLab
+-> run python3 ilab_script.py with the SQL query
+-> capture stdout and stderr
+-> print the result locally
+
+A basic version is:
+
+import paramiko
+import getpass
+import shlex
+
+
+def run_remote_sql_query(sql_query: str) -> tuple[int, str, str]:
+    hostname = "ilab.cs.rutgers.edu"
+    username = input("Enter your iLab/Rutgers NetID: ")
+    password = getpass.getpass("Enter your iLab/Rutgers password: ")
+
+    remote_script_path = "~/ilab_script.py"
+    remote_command = f"python3 {remote_script_path} {shlex.quote(sql_query)}"
+
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        client.connect(
+            hostname=hostname,
+            username=username,
+            password=password,
+            look_for_keys=False,
+            allow_agent=False,
+            timeout=15
+        )
+
+        stdin, stdout, stderr = client.exec_command(remote_command)
+
+        output = stdout.read().decode("utf-8", errors="replace")
+        error_output = stderr.read().decode("utf-8", errors="replace")
+        exit_code = stdout.channel.recv_exit_status()
+
+        return exit_code, output, error_output
+
+    finally:
+        client.close()
+
+
+if __name__ == "__main__":
+    sql = "SELECT * FROM application LIMIT 5;"
+    exit_code, output, error_output = run_remote_sql_query(sql)
+
+    print("--- Remote Output ---")
+    print(output)
+
+    if exit_code != 0:
+        print("--- Remote Error ---")
+        print(error_output)
+
+    print("Exit code:", exit_code)
+
+In the full project, the SQL query should not be hardcoded. Instead, it should come from the LLM and extraction pipeline:
+
+question = input("Enter a database question: ")
+llm_response = run_llm(question)
+clean_sql = extract_query(llm_response)
+
+if not clean_sql.strip().upper().startswith("SELECT"):
+    print("Only SELECT queries are allowed.")
+else:
+    exit_code, output, error_output = run_remote_sql_query(clean_sql)
+    print(output)
+
+One important note is that there may be two passwords involved: the SSH password for iLab and the PostgreSQL password for the database. If the remote script asks for credentials interactively, Paramiko may need get_pty=True, but the cleaner class-project design is usually to ask for credentials in a predictable way and keep the remote script focused on receiving and running the SQL query."
+
+--------------------------------------------------------------------------------------------------
+
+Input: "So, if I need to pass a SQL SELECT query as an argument to a remote Python script over SSH, how should I safely quote or escape the query so spaces, semicolons, and quotation marks do not break the shell command?"
+
+Output: "Use Python's shlex.quote() on the SQL query before inserting it into the remote shell command.
+
+The recommended pattern is:
+
+import shlex
+
+sql_query = "SELECT * FROM application WHERE applicant_income_000s > 100 LIMIT 5;"
+remote_script_path = "~/ilab_script.py"
+remote_command = f"python3 {remote_script_path} {shlex.quote(sql_query)}"
+
+This safely turns the SQL query into one shell-safe argument. Even if the SQL query contains spaces, semicolons, single quotes, or double quotes, the remote shell will still pass it as one argument to the Python script.
+
+Without quoting, this command can break:
+
+python3 ilab_script.py SELECT * FROM application WHERE name = 'John Smith';
+
+The shell would treat SELECT, *, FROM, application, WHERE, and the rest as separate arguments. But the remote script expects the whole query to be sys.argv[1].
+
+With shlex.quote(), the command becomes shell-safe, even if it looks ugly. That is okay because the shell interprets it correctly.
+
+A useful helper function is:
+
+import shlex
+
+
+def build_remote_sql_command(sql_query: str, remote_script_path: str) -> str:
+    quoted_query = shlex.quote(sql_query)
+    return f"python3 {remote_script_path} {quoted_query}"
+
+If the script path might contain spaces, quote the script path too:
+
+remote_command = f"python3 {shlex.quote(remote_script_path)} {shlex.quote(sql_query)}"
+
+For the project, the key line is:
+
+command = f"python3 {remote_script_path} {shlex.quote(sql_query)}"
+
+That is what protects the SQL query from breaking the SSH command."
+
