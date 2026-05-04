@@ -42,13 +42,13 @@ if __name__ == "__main__":
             print("Exiting...")
             break
         raw_output = run_llm(user_question)
-        print("\n-- RAW LLM OUTPUT --")
+        print("\n-- Llm Output --")
         print(raw_output)
         processed_sql = extract_query(raw_output)
         if "ERROR" in processed_sql:
             print(f"\n{processed_sql}")
         else:
-            print("\n--CLEAN SQL FOR ILAB --")
+            print("\n--Clean SQL --")
             print(processed_sql)
             print("\nExecuting on iLab server...")
             subprocess.run(["python3", "ilab_script.py", processed_sql])
