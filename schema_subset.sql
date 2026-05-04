@@ -23,7 +23,7 @@ CREATE TABLE Location
     state_code INT,
     census_tract_number VARCHAR(20),
     population INT,
-    hud_median_family_income INT,
+    hud_median_family_income INT
   );
 
 INSERT INTO location (location_id, county_code, state_code, population) VALUES (1, 35, 34, 5000);
@@ -53,7 +53,7 @@ CREATE TABLE Co_application_Race
 );
 
 INSERT INTO Application_Denial_Reason (application_id, denial_reason_id, reason_number) VALUES (101, 1, 1);
-INSERT INTO Application_Race (appplication_id, race_id, race_number) VALUES (101, 5, 1);
+INSERT INTO Application_Race (application_id, race_id, race_number) VALUES (101, 5, 1);
 
 CREATE TABLE Normalized_App(
   id INT PRIMARY KEY,
@@ -67,7 +67,7 @@ CREATE TABLE Normalized_App(
   respondent_id VARCHAR (20),
   loan_type INT,
   location_id INT,
-  FOREIGN KEY (location_id) REFERENCES Location(loction_id),
+  FOREIGN KEY (location_id) REFERENCES Location(location_id),
   FOREIGN KEY (agency_code) REFERENCES Agency(agency_code),
   FOREIGN KEY (action_taken) REFERENCES ActionTaken(action_taken)
 );
