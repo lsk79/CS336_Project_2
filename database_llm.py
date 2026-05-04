@@ -19,16 +19,6 @@ ORDER BY COUNT(*) DESC
 LIMIT 1;"""
     else:
         return "SELECT * FROM application LIMIT 5;"
-while True:
-    question = input("Enter question (or type exit): ")
-
-    if question == "exit":
-        break
-
-    print("\n--- LLM OUTPUT ---")
-    print(run_llm(question))
-    print()
-
 ##Angela -->
 
 def extract_query(llm_response: str) -> str:
@@ -45,7 +35,7 @@ def extract_query(llm_response: str) -> str:
         query = " ".join(query.split())
     return query
 
-if __name__ == "--main--":
+if __name__ == "__main__":
     while True:
         user_question = input("\nEnter question (or type exit): ")
         if user_question.lower() == "exit":
