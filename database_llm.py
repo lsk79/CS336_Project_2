@@ -8,7 +8,7 @@ import paramiko
 ##Lucas --> (Config)
 
 ILAB_HOST = "python.cs.rutgers.edu"
-REMOTE_PYTHON = "python3"
+REMOTE_PYTHON = "myenv/bin/python"
 REMOTE_SCRIPT_PATH = "ilab_script.py"
 
 ##Shreya--> 
