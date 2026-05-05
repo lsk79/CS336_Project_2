@@ -32,7 +32,6 @@ LIMIT 1;"""
 def run_llm(question):
     try:
         from llama_cpp import Llama
-
         schema_file = open("schema_prompt.sql", "r")
         schema = schema_file.read()
         schema_file.close()
