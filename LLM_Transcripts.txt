@@ -126,7 +126,36 @@ def run_llm(question):
 
 This allows you to simulate LLM behavior while testing your pipeline."
 ---
+Input: "How can I update my Python function so it uses a local llama-cpp model with schema_prompt.sql, but still falls back to simple SQL responses if the model fails?"
 
+Output: "You can keep the fallback function for testing, then update run_llm() to try loading a local model with llama_cpp. The function should read schema_prompt.sql, build a prompt with the schema and user question, call the local model, and return the SQL text. If the model file is missing or the output does not start with SELECT, return the fallback query.
+Example structure:
+
+from llama_cpp import Llama
+
+def run_llm(question):
+    try:
+        f = open('schema_prompt.sql', 'r')
+        schema = f.read()
+        f.close()
+
+        llm = Llama(model_path='model.gguf', n_ctx=2048, verbose=False)
+
+        prompt = f'Write a SQL SELECT query.\\nSchema:\\n{schema}\\nQuestion: {question}\\nSQL:'
+
+        result = llm(prompt, max_tokens=200)
+        sql = result['choices'][0]['text'].strip()
+
+        if sql.lower().startswith('select'):
+            return sql
+
+        return keyword_fallback(question)
+
+    except Exception as e:
+        print('LLM error:', e)
+        return keyword_fallback(question)
+
+This keeps the same function output as before, so the rest of the project can still process the SQL string."
 --------------------------------------------------------------------------------------
 Angela Ding -->
 
