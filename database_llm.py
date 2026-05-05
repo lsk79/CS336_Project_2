@@ -13,14 +13,13 @@ REMOTE_SCRIPT_PATH = "~/ilab_script.py"
 
 ##Shreya--> 
 
-def run_llm(question):
+def keyword_fallback(question):
     q = question.lower()
-
     if "average income" in q:
         return "SELECT AVG(applicant_income_000s) FROM application;"
     elif "loan value greater than" in q or "loan amount greater than" in q:
         return "SELECT COUNT(*) FROM application WHERE loan_amount_000s > applicant_income_000s;"
-    elif "common loan denial" in q or "most common denial" in q:
+    elif "denial reason" in q:
         return """SELECT d.denial_reason_name_1, COUNT(*)
 FROM application a
 JOIN denialreason1 d ON a.denial_reason_1 = d.denial_reason_1
@@ -29,6 +28,46 @@ ORDER BY COUNT(*) DESC
 LIMIT 1;"""
     else:
         return "SELECT * FROM application LIMIT 5;"
+
+def run_llm(question):
+    try:
+        from llama_cpp import Llama
+
+        schema_file = open("schema_prompt.sql", "r")
+        schema = schema_file.read()
+        schema_file.close()
+
+        llm = Llama(
+            model_path="model.gguf",
+            n_ctx=2048,
+            verbose=False
+        )
+        prompt = f"""
+Write one PostgreSQL SELECT query for the question.
+Only use the tables and columns in the schema.
+Only return the SQL query. Do not explain.
+
+Schema:
+{schema}
+
+Question:
+{question}
+
+SQL:
+"""
+
+        result = llm(prompt, max_tokens=200)
+        sql = result["choices"][0]["text"].strip()
+
+        if sql.lower().startswith("select"):
+            return sql
+        else:
+            return keyword_fallback(question)
+
+    except Exception as e:
+        print("LLM error:", e)
+        return keyword_fallback(question)
+    
 ##Angela -->
 
 def extract_query(llm_response: str) -> str:
